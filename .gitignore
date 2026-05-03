@@ -1,0 +1,6 @@
+/redteam-box
+*.test
+*.out
+.DS_Store
+.env
+.env.local
