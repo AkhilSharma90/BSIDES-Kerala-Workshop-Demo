@@ -28,8 +28,9 @@ func runDemo(_ *cobra.Command, _ []string) error {
 		os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	ui.Banner("redteam-box · offline demo")
-	ui.Field("note", "running all three patterns against the mock target — no API keys needed")
+	r := ui.NewCLIReporter()
+	r.Banner("redteam-box · offline demo")
+	r.Field("note", "running all three patterns against the mock target — no API keys needed")
 
 	patternNames := []string{"crescendo", "evolutionary", "mixture"}
 	for _, name := range patternNames {
@@ -41,25 +42,26 @@ func runDemo(_ *cobra.Command, _ []string) error {
 			Population:  4,
 			Rounds:      6,
 			Verbose:     true,
+			Reporter:    r,
 		}
 		p := patterns.ByName(name, opts)
 		if p == nil {
 			return fmt.Errorf("missing pattern %q", name)
 		}
 
-		ui.Banner(fmt.Sprintf("pattern: %s", p.Name()))
-		ui.Field("description", p.Description())
-		ui.Field("target", t.Name())
-		ui.Field("goal", t.Goal())
+		r.Banner(fmt.Sprintf("pattern: %s", p.Name()))
+		r.Field("description", p.Description())
+		r.Field("target", t.Name())
+		r.Field("goal", t.Goal())
 
 		camp, err := p.Run(ctx, t)
 		if err != nil {
 			return fmt.Errorf("%s failed: %w", name, err)
 		}
-		ui.Result(camp.Succeeded, camp.BestScore, camp.BestPrompt, camp.BestReply)
+		r.Result(camp)
 	}
 
-	ui.Banner("demo complete")
-	ui.Field("next", "edit internal/target/target.go to point at a real AI product, set API keys, and run with --target real")
+	r.Banner("demo complete")
+	r.Field("next", "run with --target real --target-system-prompt @path.txt to attack any AI product you have authorization to test")
 	return nil
 }

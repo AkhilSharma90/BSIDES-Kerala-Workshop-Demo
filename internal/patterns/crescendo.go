@@ -7,7 +7,6 @@ import (
 	"github.com/akhilsharma/redteam-box/internal/agents"
 	"github.com/akhilsharma/redteam-box/internal/llm"
 	"github.com/akhilsharma/redteam-box/internal/target"
-	"github.com/akhilsharma/redteam-box/internal/ui"
 )
 
 // Crescendo implements the Microsoft Research Crescendo pattern
@@ -35,6 +34,7 @@ func (c *Crescendo) Run(ctx context.Context, t target.Target) (*agents.Campaign,
 	gen := agents.NewPayloadGenerator(deps, llm.PersonaRapport)
 	exec := agents.NewExecutor(deps, t)
 	eval := agents.NewEvaluator(deps)
+	r := c.opts.reporter()
 
 	camp := &agents.Campaign{Goal: c.opts.Goal}
 
@@ -44,10 +44,8 @@ func (c *Crescendo) Run(ctx context.Context, t target.Target) (*agents.Campaign,
 	}
 	camp.Plan = plan
 
-	if c.opts.Verbose {
-		ui.Section("crescendo")
-		ui.Plan(plan)
-	}
+	r.Section("crescendo")
+	r.Plan(plan)
 
 	maxTurns := c.opts.MaxTurns
 	if maxTurns == 0 {
@@ -86,9 +84,7 @@ func (c *Crescendo) Run(ctx context.Context, t target.Target) (*agents.Campaign,
 		}
 		camp.AppendTurn(turn)
 
-		if c.opts.Verbose {
-			ui.Turn(i, turn.Attacker, prompt, reply, score, reason)
-		}
+		r.Turn(turn)
 
 		lastReply = reply
 

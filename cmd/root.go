@@ -21,7 +21,8 @@ required for the demo. To attack a real target, set ANTHROPIC_API_KEY
 / OPENAI_API_KEY / GOOGLE_API_KEY and pass --target real.
 
 This tool is for authorized security research and education only.`,
-	SilenceUsage: true,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 func Execute() error {

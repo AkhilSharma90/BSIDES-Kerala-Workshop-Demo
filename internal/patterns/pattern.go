@@ -46,6 +46,18 @@ type Options struct {
 	Population  int
 	Rounds      int
 	Verbose     bool
+	// Reporter receives all user-facing progress events. If nil, a
+	// no-op reporter is used so tests and library callers don't need
+	// to wire one up.
+	Reporter agents.Reporter
+}
+
+// reporter returns the configured Reporter or a no-op fallback.
+func (o Options) reporter() agents.Reporter {
+	if o.Reporter == nil {
+		return agents.NoopReporter{}
+	}
+	return o.Reporter
 }
 
 // must is a tiny helper used by patterns that want to surface a

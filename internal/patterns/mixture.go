@@ -8,7 +8,6 @@ import (
 	"github.com/akhilsharma/redteam-box/internal/agents"
 	"github.com/akhilsharma/redteam-box/internal/llm"
 	"github.com/akhilsharma/redteam-box/internal/target"
-	"github.com/akhilsharma/redteam-box/internal/ui"
 )
 
 // Mixture is the workshop's signature pattern. A panel of specialist
@@ -38,6 +37,7 @@ func (m *Mixture) Run(ctx context.Context, t target.Target) (*agents.Campaign, e
 	strat := agents.NewStrategist(deps)
 	exec := agents.NewExecutor(deps, t)
 	eval := agents.NewEvaluator(deps)
+	r := m.opts.reporter()
 
 	// Build the panel of expert attackers from whatever providers are
 	// configured. Each gets its own PayloadGenerator instance.
@@ -55,15 +55,13 @@ func (m *Mixture) Run(ctx context.Context, t target.Target) (*agents.Campaign, e
 	}
 	camp.Plan = plan
 
-	if verbose {
-		ui.Section("mixture-of-attackers")
-		ui.Plan(plan)
-		var names []string
-		for _, e := range panel {
-			names = append(names, string(e.Persona)+"("+e.Client.Name()+")")
-		}
-		ui.Field("panel", strings.Join(names, ", "))
+	r.Section("mixture-of-attackers")
+	r.Plan(plan)
+	var names []string
+	for _, e := range panel {
+		names = append(names, string(e.Persona)+"("+e.Client.Name()+")")
 	}
+	r.Field("panel", strings.Join(names, ", "))
 
 	rounds := m.opts.Rounds
 	if rounds == 0 {
@@ -113,9 +111,7 @@ func (m *Mixture) Run(ctx context.Context, t target.Target) (*agents.Campaign, e
 			At:       time.Now(),
 		}
 		camp.AppendTurn(turn)
-		if verbose {
-			ui.Turn(i, turn.Attacker, prompt, reply, score, reason)
-		}
+		r.Turn(turn)
 
 		lastReply = reply
 		if camp.Succeeded {
@@ -148,21 +144,25 @@ func pickExpert(round int, lastReply string,
 		strings.Contains(low, "not able") ||
 		strings.Contains(low, "i'm not")
 
-	// On a refusal, switch tactic: try a persona that has not been used
-	// much yet, or if all have been used, the least-effective so far so
-	// we explore.
+	// On a refusal, switch tactic: prefer a persona that has been used
+	// least. When several are tied (common once everyone has been used
+	// at least once), round-robin by `round` so we don't keep biasing
+	// back to panel[0].
 	if refused {
-		var pick llm.Persona
-		var minN = 1 << 30
+		minN := 1 << 30
+		var tied []llm.Persona
 		for _, e := range panel {
-			s := stats[e.Persona]
-			if s.n < minN {
-				minN = s.n
-				pick = e.Persona
+			n := stats[e.Persona].n
+			switch {
+			case n < minN:
+				minN = n
+				tied = []llm.Persona{e.Persona}
+			case n == minN:
+				tied = append(tied, e.Persona)
 			}
 		}
-		if pick != "" {
-			return pick
+		if len(tied) > 0 {
+			return tied[round%len(tied)]
 		}
 	}
 

@@ -3,12 +3,12 @@ package patterns
 import (
 	"context"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/akhilsharma/redteam-box/internal/agents"
 	"github.com/akhilsharma/redteam-box/internal/llm"
 	"github.com/akhilsharma/redteam-box/internal/target"
-	"github.com/akhilsharma/redteam-box/internal/ui"
 )
 
 // Evolutionary implements a genetic-algorithm-style attacker. A
@@ -43,6 +43,7 @@ func (e *Evolutionary) Run(ctx context.Context, t target.Target) (*agents.Campai
 	gen := agents.NewPayloadGenerator(deps, llm.PersonaRoleplay)
 	exec := agents.NewExecutor(deps, t)
 	eval := agents.NewEvaluator(deps)
+	r := e.opts.reporter()
 
 	camp := &agents.Campaign{Goal: e.opts.Goal}
 
@@ -55,9 +56,7 @@ func (e *Evolutionary) Run(ctx context.Context, t target.Target) (*agents.Campai
 		gens = 4
 	}
 
-	if e.opts.Verbose {
-		ui.Section("evolutionary")
-	}
+	r.Section("evolutionary")
 
 	// Seed population with hand-written archetypes — these are short and
 	// span very different framings, which gives the GA something to mix.
@@ -89,7 +88,7 @@ func (e *Evolutionary) Run(ctx context.Context, t target.Target) (*agents.Campai
 			turnIdx++
 			turn := agents.Turn{
 				Index:    turnIdx,
-				Attacker: "evolutionary:gen" + itoa(g),
+				Attacker: "evolutionary:gen" + strconv.Itoa(g),
 				Prompt:   population[i].prompt,
 				Reply:    reply,
 				Score:    score,
@@ -97,9 +96,7 @@ func (e *Evolutionary) Run(ctx context.Context, t target.Target) (*agents.Campai
 				At:       time.Now(),
 			}
 			camp.AppendTurn(turn)
-			if e.opts.Verbose {
-				ui.Turn(turnIdx, turn.Attacker, turn.Prompt, turn.Reply, turn.Score, turn.Reason)
-			}
+			r.Turn(turn)
 		}
 
 		// Selection: keep top half.
@@ -134,31 +131,3 @@ func (e *Evolutionary) Run(ctx context.Context, t target.Target) (*agents.Campai
 	return camp, nil
 }
 
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	var b [20]byte
-	i := len(b)
-	for n > 0 {
-		i--
-		b[i] = byte('0' + n%10)
-		n /= 10
-	}
-	if neg {
-		i--
-		b[i] = '-'
-	}
-	return string(b[i:])
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
